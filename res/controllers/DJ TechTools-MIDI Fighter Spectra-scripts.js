@@ -16,6 +16,73 @@ var MidiFighterSpectra;
         constructor() {
             super([1, 2, 3, 4]);
 
+            const colorMapper = new ColorMapper({
+                // These colors don't always appear to match what the
+                // manual says they should be. The "bright" version of
+                // the color is what the manual says should be the
+                // "dull" version, and "white" is actually purple (and
+                // the invalid value, 121, provided is actually white).
+                0x000000: 1,   // Black (Off)
+                0xC50A08: 19,  // Dim Red
+                0xF07800: 31,  // Dim Orange
+                0xF8D200: 43,  // Dim Yellow
+                0xC4D82E: 55,  // Dim Lime
+                0x32BE44: 67,  // Dim Green
+                0x42D4F4: 79,  // Dim Bianchi/Celeste
+                0x0044FF: 91,  // Dim Blue
+                0xAF00CC: 103, // Dim Purple
+                0xFCA6D7: 115, // Dim Pink
+                0xF2F2FF: 122, // White
+
+                // NI Stem Colors
+                // These are sometimes close enough to the wrong color to be
+                // mapped to it using the closest match algorithm since we use
+                // common Mixxx hotcue colors above.
+                0xFD4a4a: 19, // Red (mapped to orange otherwise)
+                0xFA8d29: 43, // Yellow (mapped to orange otherwise)
+                0xFF652E: 31, // Orange (mapped to red otherwise)
+            });
+
+            this.stemLayer = [];
+            for (let i = 0; i < 4; i++) {
+                this.stemLayer[i + 4] = new components.Button({
+                    group: `[QuickEffectRack1_[Channel1_Stem${i + 1}]]`,
+                    midi: [0x92, 0x5C + i],
+                    key: "enabled",
+                    type: components.Button.prototype.types.toggle,
+                    on: 66, // green
+                });
+                this.stemLayer[i] = new components.Button({
+                    group: `[Channel1_Stem${i + 1}]`,
+                    midi: [0x92, 0x60 + i],
+                    key: "mute",
+                    colorKey: "color",
+                    stemNum: i + 1,
+                    type: components.Button.prototype.types.toggle,
+                    colorMapper: colorMapper,
+                    connect: function() {
+                        this.connections[0] = engine.makeConnection(this.group, this.outKey, this.output.bind(this));
+                        this.connections[1] = engine.makeConnection(this.group, this.colorKey, this.output.bind(this));
+                    },
+                    output: function(value, _group, control) {
+                        const color = engine.getValue(this.group, this.colorKey);
+                        const channel = `${this.group.substring(0, 9)  }]`;
+                        const stemCount = engine.getValue(channel, "stem_count");
+                        if (color === -1 || this.stemNum > stemCount) {
+                            this.send(this.off);
+                            return;
+                        }
+
+                        const nearestColorValue = this.colorMapper.getValueForNearestColor(color);
+
+                        // If muted, use the dim variant of the color, otherwise
+                        // use the bright version.
+                        const muted = engine.getValue(this.group, this.key);
+                        this.send(nearestColorValue - (muted ? 0 : 1));
+                    },
+                });
+            }
+
             this.cueLayer = [
                 // Intro/outro markers
                 new components.Button({
@@ -59,24 +126,7 @@ var MidiFighterSpectra;
                         0x3C, 0x3D, 0x3E, 0x3F,
                         0x38, 0x39, 0x3A, 0x3B
                     ][i]],
-                    colorMapper: new ColorMapper({
-                        // These colors don't always appear to match what the
-                        // manual says they should be. The "bright" version of
-                        // the color is what the manual says should be the
-                        // "dull" version, and "white" is actually purple (and
-                        // the invalid value, 121, provided is actually white).
-                        0x000000: 1,   // Black (Off)
-                        0xC50A08: 19,  // Dim Red
-                        0xF07800: 31,  // Dim Orange
-                        0xF8D200: 43,  // Dim Yellow
-                        0xC4D82E: 55,  // Dim Lime
-                        0x32BE44: 67,  // Dim Green
-                        0x42D4F4: 79,  // Dim Bianchi/Celeste
-                        0x0044FF: 91,  // Dim Blue
-                        0xAF00CC: 103, // Dim Purple
-                        0xFCA6D7: 115, // Dim Pink
-                        0xF2F2FF: 122, // White
-                    }),
+                    colorMapper: colorMapper,
                     input: function(channel, control, value, status, group) {
                         // If this is a note release event, swap the value as if
                         // this were a normal button release.
@@ -92,7 +142,7 @@ var MidiFighterSpectra;
                         // set the brighter variant of the closest color.
                         if (enabled) {
                             const nearestColorValue = this.colorMapper.getValueForNearestColor(colorCode);
-                            this.send(nearestColorValue - (enabled ? 1 : 0));
+                            this.send(nearestColorValue - 1);
                             return;
                         }
 
@@ -163,25 +213,29 @@ var MidiFighterSpectra;
 
             // Since this is a radio button set, just have one button that
             // handles setting and unsetting all the LEDs.
-            this.selectCueDeck = new components.Button({
+            this.selectDeck = new components.Button({
                 group: "[Channel1]",
                 key: "end_of_track",
-                midi: [0x92, 0x34],
+                midi: [0x92, [0x34, 0x54]],
                 input: function(_channel, control, value, _status, group) {
                     MidiFighterSpectra.controller.activeDeck.setCurrentDeck(group);
                     this.output(value, group, control);
                 },
                 output: function(_value, _group, control) {
                     for (let i = 0; i < 4; i++) {
-                        midi.sendShortMsg(this.midi[0], this.midi[1] + i, (control === this.midi[1] + i) ? this.on : this.off);
+                        for (const midino of this.midi[1]) {
+                            midi.sendShortMsg(this.midi[0], midino + i, (control === midino + i) ? this.on : this.off);
+                        }
                     }
                 },
                 pulse: function(value, group, _control) {
                     const deckNum = parseInt(script.channelRegEx.exec(group)[1]);
-                    if (value) {
-                        midi.sendShortMsg(this.midi[0] + 1, this.midi[1] + deckNum - 1, 47);
-                    } else {
-                        midi.sendShortMsg(this.midi[0] - 0xF, this.midi[1] + deckNum - 1, 33);
+                    for (const midino of this.midi[1]) {
+                        if (value) {
+                            midi.sendShortMsg(this.midi[0] + 1, midino + deckNum - 1, 47);
+                        } else {
+                            midi.sendShortMsg(this.midi[0] - 0xF, midino + deckNum - 1, 33);
+                        }
                     }
                 },
                 on: engine.getSetting("deckSelectedColor"),
@@ -194,7 +248,8 @@ var MidiFighterSpectra;
                     }
                 },
             });
-            this.selectCueDeck.output(0x7F, "[Channel1]", 0x34);
+            this.selectDeck.output(0x7F, "[Channel1]", 0x34);
+            this.selectDeck.output(0x7F, "[Channel1]", 0x54);
         }
     }
 
@@ -261,6 +316,9 @@ var MidiFighterSpectra;
         case "samplers":
             midi.sendShortMsg(0x93, 0x02, 127);
             break;
+        case "stems":
+            midi.sendShortMsg(0x93, 0x03, 127);
+            break;
         }
     };
 
@@ -281,4 +339,4 @@ var MidiFighterSpectra;
     };
 })(MidiFighterSpectra || (MidiFighterSpectra = {}));
 
-// vim:expandtab:tabstop=4:shiftwidth=4
+// vim:expandtab:tabstop=4:shiftwidth=4:backupcopy=yes
