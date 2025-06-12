@@ -64,9 +64,9 @@ var MidiFighterSpectra;
                         this.connections[0] = engine.makeConnection(this.group, this.outKey, this.output.bind(this));
                         this.connections[1] = engine.makeConnection(this.group, this.colorKey, this.output.bind(this));
                     },
-                    output: function(value, _group, control) {
+                    output: function(_value, _group, _control) {
                         const color = engine.getValue(this.group, this.colorKey);
-                        const channel = `${this.group.substring(0, 9)  }]`;
+                        const channel = script.channelFromStem(this.group);
                         const stemCount = engine.getValue(channel, "stem_count");
                         if (color === -1 || this.stemNum > stemCount) {
                             this.send(this.off);
@@ -219,16 +219,14 @@ var MidiFighterSpectra;
                 midi: [0x92, [0x34, 0x54]],
                 input: function(_channel, control, value, _status, group) {
                     MidiFighterSpectra.controller.activeDeck.setCurrentDeck(group);
-                    this.output(value, group, control);
-                },
-                output: function(_value, _group, control) {
                     for (let i = 0; i < 4; i++) {
                         for (const midino of this.midi[1]) {
                             midi.sendShortMsg(this.midi[0], midino + i, (control === midino + i) ? this.on : this.off);
                         }
                     }
                 },
-                pulse: function(value, group, _control) {
+                output: function(value, group, _control) {
+                    // Pulse the deck select button if the track is ending.
                     const deckNum = parseInt(script.channelRegEx.exec(group)[1]);
                     for (const midino of this.midi[1]) {
                         if (value) {
@@ -243,7 +241,7 @@ var MidiFighterSpectra;
                 connect: function() {
                     if (engine.getSetting("pulseDeckSelect")) {
                         for (let i = 0; i < 4; i++) {
-                            this.connections[i] = engine.makeConnection(`[Channel${i + 1}]`, "end_of_track", this.pulse.bind(this));
+                            this.connections[i] = engine.makeConnection(`[Channel${i + 1}]`, "end_of_track", this.output.bind(this));
                         }
                     }
                 },
