@@ -206,7 +206,7 @@ var P1Nano;
                 }
                 return;
             }
-            return components.Component.prototype.connect.bind(this)();
+            return components.Component.prototype.connect.call(this);
         }
         outValueScale(value) {
             // TODO: 0xD is 100% (> 0 dB) while 0xC is clipping at 0 dB. If
@@ -285,7 +285,7 @@ var P1Nano;
         input(channel, control, value, status, group) {
             // If we're not shifted, just call the normal input function.
             if (!this.isShifted) {
-                return components.Encoder.prototype.input.bind(this)(channel, control, value, status, group);
+                return components.Encoder.prototype.input.call(this, channel, control, value, status, group);
             }
 
             // If we are shifted, update the parameter that the knob changes.
@@ -384,7 +384,8 @@ var P1Nano;
             this.touchScreen = new TouchScreen();
 
             this.jogWheel = new components.JogWheelBasic({
-                deck: 3,
+                group: "[Channel1]",
+                deck: 1,
                 midi: [0xB0, 0x3C],
                 vinylMode: false,
                 wheelResolution: 21,
@@ -428,7 +429,7 @@ var P1Nano;
 
         setCurrentDeck(newGroup) {
             midi.sendShortMsg(0x90, 0x18 + (newGroup - 1), 0x7F);
-            components.Deck.prototype.setCurrentDeck.bind(this)(newGroup);
+            components.Deck.prototype.setCurrentDeck.call(this, newGroup);
         }
     }
 
@@ -689,7 +690,7 @@ var P1Nano;
                         }
                         // Otherwise we have a normal range and can do the
                         // normal thing.
-                        return components.Encoder.prototype.outValueScale.bind(this)(value);
+                        return components.Encoder.prototype.outValueScale.call(this, value);
                     },
                     shift: function() {
                         this.key = "rate";
