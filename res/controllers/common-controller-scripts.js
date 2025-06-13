@@ -198,7 +198,7 @@ script.midiDebug = function(channel, control, value, status, group) {
 script.channelFromStem = function(stem) {
     // Jank safety check that's faster than a regex and probably good enough.
     if (stem.length !== 16 || stem.substring(0, 8) !== "[Channel" || stem.substring(9, 14) !== "Stem" || stem[15] !== "]") {
-        return "";
+        return undefined;
     }
     return `${this.group.substring(0, 9)  }]`;
 };
