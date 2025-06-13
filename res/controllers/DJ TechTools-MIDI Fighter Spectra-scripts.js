@@ -12,6 +12,21 @@ var MidiFighterSpectra;
         }
     };
 
+    const COLORS = Object.freeze({
+        OFF: 1, // Off
+        DIM_RED: 19,
+        DIM_ORANGE: 31,
+        DIM_YELLOW: 43,
+        DIM_LIME: 55,
+        GREEN: 66,
+        DIM_GREEN: 67,
+        DIM_CELESTE: 79,
+        DIM_BLUE: 91,
+        DIM_PURPLE: 103,
+        DIM_PINK: 115,
+        WHITE: 122,
+    });
+
     class Deck extends components.Deck {
         constructor() {
             super([1, 2, 3, 4]);
@@ -22,25 +37,25 @@ var MidiFighterSpectra;
                 // the color is what the manual says should be the
                 // "dull" version, and "white" is actually purple (and
                 // the invalid value, 121, provided is actually white).
-                0x000000: 1,   // Black (Off)
-                0xC50A08: 19,  // Dim Red
-                0xF07800: 31,  // Dim Orange
-                0xF8D200: 43,  // Dim Yellow
-                0xC4D82E: 55,  // Dim Lime
-                0x32BE44: 67,  // Dim Green
-                0x42D4F4: 79,  // Dim Bianchi/Celeste
-                0x0044FF: 91,  // Dim Blue
-                0xAF00CC: 103, // Dim Purple
-                0xFCA6D7: 115, // Dim Pink
-                0xF2F2FF: 122, // White
+                0x000000: COLORS.OFF,
+                0xC50A08: COLORS.DIM_RED,
+                0xF07800: COLORS.DIM_ORANGE,
+                0xF8D200: COLORS.DIM_YELLOW,
+                0xC4D82E: COLORS.DIM_LIME,
+                0x32BE44: COLORS.DIM_GREEN,
+                0x42D4F4: COLORS.DIM_CELESTE,
+                0x0044FF: COLORS.DIM_BLUE,
+                0xAF00CC: COLORS.DIM_PURPLE,
+                0xFCA6D7: COLORS.DIM_PINK,
+                0xF2F2FF: COLORS.WHITE,
 
                 // NI Stem Colors
                 // These are sometimes close enough to the wrong color to be
                 // mapped to it using the closest match algorithm since we use
                 // common Mixxx hotcue colors above.
-                0xFD4a4a: 19, // Red (mapped to orange otherwise)
-                0xFA8d29: 43, // Yellow (mapped to orange otherwise)
-                0xFF652E: 31, // Orange (mapped to red otherwise)
+                0xFD4a4a: COLORS.DIM_RED,    // mapped to orange otherwise
+                0xFA8d29: COLORS.DIM_YELLOW, // mapped to orange otherwise
+                0xFF652E: COLORS.DIM_ORANGE, // mapped to red otherwise
             });
 
             this.stemLayer = [];
@@ -50,7 +65,7 @@ var MidiFighterSpectra;
                     midi: [0x92, 0x5C + i],
                     key: "enabled",
                     type: components.Button.prototype.types.toggle,
-                    on: 66, // green
+                    on: COLORS.GREEN,
                 });
                 this.stemLayer[i] = new components.Button({
                     group: `[Channel1_Stem${i + 1}]`,
