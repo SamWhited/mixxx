@@ -162,9 +162,16 @@ var MidiFighterSpectra;
                         }
 
                         // otherwise set the "dim" variant.
-                        components.HotcueButton.prototype.outputColor.bind(this)(colorCode);
+                        components.HotcueButton.prototype.outputColor.call(this, colorCode);
                     },
                 });
+            }
+        }
+
+        setCurrentDeck(newGroup) {
+            components.Deck.prototype.setCurrentDeck.call(this, newGroup);
+            for (const btn of MidiFighterSpectra.controller.selectDeck) {
+                btn.setActive(newGroup);
             }
         }
     }
@@ -224,45 +231,36 @@ var MidiFighterSpectra;
                 });
             }
 
+            this.selectDeck = [];
             this.activeDeck = new Deck();
 
-            // Since this is a radio button set, just have one button that
-            // handles setting and unsetting all the LEDs.
-            this.selectDeck = new components.Button({
-                group: "[Channel1]",
-                key: "end_of_track",
-                midi: [0x92, [0x34, 0x54]],
-                input: function(_channel, control, value, _status, group) {
-                    MidiFighterSpectra.controller.activeDeck.setCurrentDeck(group);
-                    for (let i = 0; i < 4; i++) {
-                        for (const midino of this.midi[1]) {
-                            midi.sendShortMsg(this.midi[0], midino + i, (control === midino + i) ? this.on : this.off);
+            for (let i = 0; i < 8; i++) {
+                this.selectDeck[i] = new components.Button({
+                    group: `[Channel${(i % 4) + 1}]`,
+                    key: "end_of_track",
+                    midi: [0x92, (i < 4 ? 0x34 : 0x54) + (i % 4)],
+                    on: engine.getSetting("deckSelectedColor"),
+                    off: engine.getSetting("deckUnselectedColor"),
+                    input: function(_channel, control, value, _status, group) {
+                        MidiFighterSpectra.controller.activeDeck.setCurrentDeck(group);
+                    },
+                    setActive(group) {
+                        // Set the LED if this button represents the currently
+                        // selected deck.
+                        midi.sendShortMsg(this.midi[0], this.midi[1], (group === this.group) ? this.on : this.off);
+                    },
+                    output: function(value, _group, _control) {
+                        // Pulse the deck select button if the track is ending.
+                        if (engine.getSetting("pulseDeckSelect")) {
+                            if (value) {
+                                midi.sendShortMsg(this.midi[0] + 1, this.midi[1], 47);
+                            } else {
+                                midi.sendShortMsg(this.midi[0] - 0xF, this.midi[1], 33);
+                            }
                         }
-                    }
-                },
-                output: function(value, group, _control) {
-                    // Pulse the deck select button if the track is ending.
-                    const deckNum = parseInt(script.channelRegEx.exec(group)[1]);
-                    for (const midino of this.midi[1]) {
-                        if (value) {
-                            midi.sendShortMsg(this.midi[0] + 1, midino + deckNum - 1, 47);
-                        } else {
-                            midi.sendShortMsg(this.midi[0] - 0xF, midino + deckNum - 1, 33);
-                        }
-                    }
-                },
-                on: engine.getSetting("deckSelectedColor"),
-                off: engine.getSetting("deckUnselectedColor"),
-                connect: function() {
-                    if (engine.getSetting("pulseDeckSelect")) {
-                        for (let i = 0; i < 4; i++) {
-                            this.connections[i] = engine.makeConnection(`[Channel${i + 1}]`, "end_of_track", this.output.bind(this));
-                        }
-                    }
-                },
-            });
-            this.selectDeck.output(0x7F, "[Channel1]", 0x34);
-            this.selectDeck.output(0x7F, "[Channel1]", 0x54);
+                    },
+                });
+            }
         }
     }
 
@@ -277,6 +275,7 @@ var MidiFighterSpectra;
 
     MidiFighterSpectra.init = function() {
         MidiFighterSpectra.controller = new Controller();
+        MidiFighterSpectra.controller.activeDeck.setCurrentDeck("[Channel1]");
 
         // Blink the ground effect LEDs when a track is ending.
         MidiFighterSpectra.connections = [];
