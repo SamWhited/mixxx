@@ -244,7 +244,7 @@ var MidiFighterSpectra;
                     input: function(_channel, control, value, _status, group) {
                         MidiFighterSpectra.controller.activeDeck.setCurrentDeck(group);
                     },
-                    setActive(group) {
+                    setActive: function(group) {
                         // Set the LED if this button represents the currently
                         // selected deck.
                         midi.sendShortMsg(this.midi[0], this.midi[1], (group === this.group) ? this.on : this.off);
