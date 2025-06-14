@@ -235,6 +235,15 @@ var MidiFighterSpectra;
             this.activeDeck = new Deck();
 
             for (let i = 0; i < 8; i++) {
+                // The selectDeck buttons are 4 buttons that let you select
+                // which deck is active. Two different layers let you select
+                // buttons this way, so there are 8 virtual buttons. Each set of
+                // 4 are like radio buttons where pressing one changes the
+                // selected deck, then only that button is illuminated in the
+                // active deck color and all other buttons are turned off.
+                // This is accomplished by the setActive method which is kept
+                // separate from the connections/output methods which handle the
+                // `end_of_track' signal for the deck represented by the button.
                 this.selectDeck[i] = new components.Button({
                     group: `[Channel${(i % 4) + 1}]`,
                     key: "end_of_track",
